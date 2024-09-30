@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
+	"time"
 
 	"github.com/julienschmidt/httprouter"
 )
@@ -47,6 +49,27 @@ func jobProcessor(msg message) {
 	log.Printf("Title: %s", msg.Title)
 	log.Printf("Body: %s", msg.Body)
 	log.Printf("====================================")
+	txt := fmt.Sprintf("Title: %s\nBody: %s", msg.Title, msg.Body)
+	saveStringToFile(txt)
+	
+}
+
+func saveStringToFile(data string) error {
+	fileName := fmt.Sprintf("output_%s.txt", time.Now().Format("20060102_150405"))
+
+	file, err := os.Create(fileName)
+	if err != nil {
+		return fmt.Errorf("error creating file: %v", err)
+	}
+	defer file.Close()
+
+	_, err = file.WriteString(data)
+	if err != nil {
+		return fmt.Errorf("error writing to file: %v", err)
+	}
+
+	fmt.Println("String successfully saved to", fileName)
+	return nil
 }
 
 /*
