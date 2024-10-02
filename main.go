@@ -1,11 +1,16 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
+	"math/rand"
 	"net/http"
 	"os"
+	"os/signal"
+	"sync"
+	"syscall"
 	"time"
 
 	"github.com/julienschmidt/httprouter"
@@ -19,17 +24,49 @@ type message struct {
 }
 
 func main() {
-	fmt.Println("Ready to receive job!")
+	var wg sync.WaitGroup
+
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
+
 	router := httprouter.New()
+
+	server := &http.Server{Addr: ":8081", Handler: router}
+
+	fmt.Println("Ready to receive job!")
 
 	router.POST("/v1/api/jobs/submit", jobReceiver)
 	go func() {
-		http.ListenAndServe(":8081", router)
+		if err := server.ListenAndServe(); err != nil {
+			return
+		}
 	}()
-	for msg := range channel {
-		jobProcessor(msg)
+	go func() {
+		for msg := range channel {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				jobProcessor(msg)
+			}()
+
+		}
+	}()
+
+	sig := <-sigChan
+	log.Printf("Caught Signal %v", sig)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	if err := server.Shutdown(ctx); err != nil {
+		return
 	}
 
+	close(channel)
+
+	wg.Wait()
+
+	log.Println("All jobs processed, shutting down")
 	// TODO:
 	// 1. Add sleep simulation di jobProcessor, untuk simulate long processing
 	// 2. How to implement: Graceful shutdown
@@ -55,6 +92,14 @@ func jobReceiver(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 }
 
 func jobProcessor(msg message) {
+	rand.Seed(time.Now().UnixNano())
+
+	min := 1
+	max := 5
+	delay := rand.Intn(max-min+1) + min
+	// delay := 5
+	time.Sleep(time.Duration(delay) * time.Second)
+
 	log.Printf("====================================")
 	log.Printf("Title: %s", msg.Title)
 	log.Printf("Body: %s", msg.Body)
