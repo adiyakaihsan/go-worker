@@ -67,15 +67,6 @@ func main() {
 	wg.Wait()
 
 	log.Println("All jobs processed, shutting down")
-	// TODO:
-	// 1. Add sleep simulation di jobProcessor, untuk simulate long processing
-	// 2. How to implement: Graceful shutdown
-	// 2.1. Close HTTP dulu, make sure no new requests coming in
-	// 2.2. CTRL+C dihold sampe channel kosong + last job completed
-
-	// TODO:
-	// Explore sync.WaitGroup
-	// Perdalam behavior Goroutine
 }
 
 func jobReceiver(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
